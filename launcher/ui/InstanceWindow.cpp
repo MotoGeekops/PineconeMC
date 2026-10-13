@@ -86,6 +86,7 @@ InstanceWindow::InstanceWindow(BaseInstance* instance, QWidget* parent) : QMainW
         horizontalLayout->addSpacerItem(spacer);
 
         m_launchButton = new QToolButton(this);
+        m_launchButton->setObjectName(QStringLiteral("launchButton"));
         m_launchButton->setText(tr("&Launch"));
         m_launchButton->setToolTip(tr("Launch the instance"));
         m_launchButton->setPopupMode(QToolButton::MenuButtonPopup);
@@ -94,6 +95,7 @@ InstanceWindow::InstanceWindow(BaseInstance* instance, QWidget* parent) : QMainW
         connect(m_launchButton, &QPushButton::clicked, this, [this] { APPLICATION->launch(m_instance); });
 
         m_killButton = new QPushButton(this);
+        m_killButton->setObjectName(QStringLiteral("killButton"));
         m_killButton->setText(tr("&Kill"));
         m_killButton->setToolTip(tr("Kill the running instance"));
         m_killButton->setShortcut(QKeySequence(tr("Ctrl+K")));

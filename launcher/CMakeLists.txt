@@ -887,6 +887,10 @@ SET(LAUNCHER_SOURCES
     ui/themes/CustomTheme.h
     ui/themes/DarkTheme.cpp
     ui/themes/DarkTheme.h
+    ui/themes/PineconeTheme.cpp
+    ui/themes/PineconeTheme.h
+    ui/themes/TitlebarColorizer.cpp
+    ui/themes/TitlebarColorizer.h
     ui/themes/ITheme.cpp
     ui/themes/ITheme.h
     ui/themes/HintOverrideProxyStyle.cpp
@@ -1142,6 +1146,9 @@ SET(LAUNCHER_SOURCES
     ui/widgets/IconLabel.h
     ui/widgets/JavaWizardWidget.cpp
     ui/widgets/JavaWizardWidget.h
+    ui/widgets/ContinueCard.cpp
+    ui/widgets/ContinueCard.h
+    ui/widgets/ElidedLinesLabel.h
     ui/widgets/LabeledToolButton.cpp
     ui/widgets/LabeledToolButton.h
     ui/widgets/LanguageSelectionWidget.cpp
@@ -1190,6 +1197,8 @@ SET(LAUNCHER_SOURCES
     ui/instanceview/InstanceView.h
     ui/instanceview/InstanceDelegate.cpp
     ui/instanceview/InstanceDelegate.h
+    ui/instanceview/InstanceSummary.cpp
+    ui/instanceview/InstanceSummary.h
     ui/instanceview/VisualGroup.cpp
     ui/instanceview/VisualGroup.h
 )
@@ -1303,6 +1312,8 @@ endif()
 qt_add_resources(LAUNCHER_RESOURCES
     resources/backgrounds/backgrounds.qrc
     resources/multimc/multimc.qrc
+    resources/pinecone/pinecone.qrc
+    resources/pinecone_theme/pinecone_theme.qrc
     resources/pe_dark/pe_dark.qrc
     resources/pe_light/pe_light.qrc
     resources/pe_colored/pe_colored.qrc
@@ -1401,6 +1412,10 @@ target_link_libraries(Launcher_logic
     LocalPeer
     Launcher_rainbow
 )
+if(WIN32)
+    # title bar colours (ui/themes/TitlebarColorizer)
+    target_link_libraries(Launcher_logic dwmapi)
+endif()
 if (TARGET ${Launcher_QT_DBUS})
     add_compile_definitions(WITH_QTDBUS)
 endif()

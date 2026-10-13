@@ -18,6 +18,7 @@
 #include <BaseInstance.h>
 #include <icons/IconList.h>
 #include "Application.h"
+#include "InstanceSummary.h"
 #include "InstanceView.h"
 
 #include <QDebug>
@@ -30,8 +31,33 @@ InstanceProxyModel::InstanceProxyModel(QObject* parent) : QSortFilterProxyModel(
     m_naturalSort.setLocale(QLocale::system());
 }
 
+const QString& InstanceProxyModel::favoritesGroup()
+{
+    static const QString id = QChar(1) + QStringLiteral("favorites");
+    return id;
+}
+
+void InstanceProxyModel::setFilterQuery(const QString& query)
+{
+    const auto words = query.toLower().split(' ', Qt::SkipEmptyParts);
+    if (words == m_queryWords)
+        return;
+    m_queryWords = words;
+    invalidateFilter();
+}
+
+QString InstanceProxyModel::groupOf(const QModelIndex& sourceIndex) const
+{
+    auto* instance = static_cast<BaseInstance*>(sourceIndex.internalPointer());
+    if (instance && instance->isFavorite())
+        return favoritesGroup();
+    return sourceIndex.data(InstanceViewRoles::GroupRole).toString();
+}
+
 QVariant InstanceProxyModel::data(const QModelIndex& index, int role) const
 {
+    if (role == InstanceViewRoles::GroupRole)
+        return groupOf(mapToSource(index));
     QVariant data = QSortFilterProxyModel::data(index, role);
     if (role == Qt::DecorationRole) {
         return QVariant(APPLICATION->icons()->getIcon(data.toString()));
@@ -39,12 +65,30 @@ QVariant InstanceProxyModel::data(const QModelIndex& index, int role) const
     return data;
 }
 
+bool InstanceProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
+{
+    if (m_queryWords.isEmpty())
+        return true;
+    const auto index = sourceModel()->index(sourceRow, 0, sourceParent);
+    auto* instance = static_cast<BaseInstance*>(index.internalPointer());
+    if (!instance)
+        return false;
+    const auto text = InstanceSummary::searchText(instance, index.data(InstanceViewRoles::GroupRole).toString());
+    for (const auto& word : m_queryWords) {
+        if (!text.contains(word))
+            return false;
+    }
+    return true;
+}
+
 bool InstanceProxyModel::lessThan(const QModelIndex& left, const QModelIndex& right) const
 {
-    const QString leftCategory = left.data(InstanceViewRoles::GroupRole).toString();
-    const QString rightCategory = right.data(InstanceViewRoles::GroupRole).toString();
+    const QString leftCategory = groupOf(left);
+    const QString rightCategory = groupOf(right);
     if (leftCategory == rightCategory) {
         return subSortLessThan(left, right);
+    } else if (leftCategory == favoritesGroup() || rightCategory == favoritesGroup()) {
+        return leftCategory == favoritesGroup();
     } else {
         // FIXME: real group sorting happens in InstanceView::updateGeometries(), see LocaleString
         auto result = leftCategory.localeAwareCompare(rightCategory);

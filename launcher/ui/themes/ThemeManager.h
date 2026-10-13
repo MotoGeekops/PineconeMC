@@ -27,6 +27,8 @@
 #include "ui/themes/CatPack.h"
 #include "ui/themes/ITheme.h"
 
+class TitlebarColorizer;
+
 inline auto themeDebugLog() {
     return qDebug() << "[Theme]";
 }
@@ -70,6 +72,7 @@ class ThemeManager {
     QPalette m_defaultPalette;
     QString m_defaultStyle;
     LogColors m_logColors;
+    TitlebarColorizer* m_titlebarColorizer = nullptr;
 
     void initializeThemes();
     void initializeCatPacks();
@@ -91,6 +94,6 @@ class ThemeManager {
     NSObject* m_windowTitlebarObserver = nullptr;
 #endif
 
-    const QStringList builtinIcons{"pe_colored", "pe_light", "pe_dark", "pe_blue",    "breeze_light", "breeze_dark",
-                                   "OSX",        "iOS",      "flat",    "flat_white", "multimc"};
+    const QStringList builtinIcons{"pinecone", "pe_colored", "pe_light",   "pe_dark", "pe_blue", "breeze_light",
+                                   "breeze_dark", "OSX",     "iOS",        "flat",    "flat_white", "multimc"};
 };

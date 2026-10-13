@@ -101,6 +101,7 @@ class InstanceView : public QAbstractItemView {
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void mouseDoubleClickEvent(QMouseEvent* event) override;
+    bool viewportEvent(QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
 
@@ -138,6 +139,10 @@ class InstanceView : public QAbstractItemView {
     VisualGroup* m_pressedCategory;
     QItemSelectionModel::SelectionFlag m_ctrlDragSelectionFlag;
     QPoint m_lastDragPosition;
+
+    // tile under the mouse, drawn with a hover highlight
+    QPersistentModelIndex m_hoveredIndex;
+    void setHoveredIndex(const QModelIndex& index);
 
     VisualGroup* category(const QModelIndex& index) const;
     VisualGroup* category(const QString& cat) const;

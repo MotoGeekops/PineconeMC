@@ -1,0 +1,11 @@
+[Icon Theme]
+Name=Pinecone
+Comment=Line icons in PineconeMC greens, made for the Pinecone theme
+Inherits=multimc
+Directories=scalable
+
+[scalable]
+Size=48
+Type=Scalable
+MinSize=16
+MaxSize=256

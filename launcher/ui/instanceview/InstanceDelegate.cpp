@@ -37,6 +37,7 @@
 #include <QApplication>
 #include <QDebug>
 #include <QPainter>
+#include <QPainterPath>
 #include <QTextLayout>
 #include <QTextOption>
 #include <QtMath>
@@ -44,6 +45,7 @@
 #include <QIcon>
 #include <QTextEdit>
 #include "BaseInstance.h"
+#include "InstanceSummary.h"
 #include "InstanceList.h"
 #include "InstanceView.h"
 
@@ -176,6 +178,66 @@ static QSize viewItemTextSize(const QStyleOptionViewItem* option)
     return QSize(size.width() + 2 * textMargin, size.height());
 }
 
+namespace {
+// tile layout: padding, 48px icon, gap, wrapped name, optional version line, padding
+constexpr int tilePadding = 6;
+constexpr int tileIconSize = 48;
+constexpr int tileIconGap = 5;
+constexpr int tileDetailGap = 2;
+constexpr qreal tileRadius = 10.0;
+
+BaseInstance* instanceAt(const QModelIndex& index)
+{
+    return static_cast<BaseInstance*>(index.data(InstanceList::InstancePointerRole).value<void*>());
+}
+
+QFont detailFont(const QFont& base)
+{
+    QFont font = base;
+    font.setPointSizeF(base.pointSizeF() * 0.85);
+    return font;
+}
+
+/// Rounded card behind the whole tile: a soft tint on hover, an accent tint and outline when selected.
+void drawTileBackground(QPainter* painter, const QStyleOptionViewItem& option)
+{
+    const bool selected = option.state & QStyle::State_Selected;
+    const bool hovered = option.state & QStyle::State_MouseOver;
+    if (!selected && !hovered)
+        return;
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    QPainterPath path;
+    path.addRoundedRect(QRectF(option.rect).adjusted(1.5, 1.5, -1.5, -1.5), tileRadius, tileRadius);
+    if (selected) {
+        // brush, not colour: themes may use a gradient for the highlight
+        const QBrush highlight = option.palette.brush(QPalette::Highlight);
+        painter->setOpacity(hovered ? 0.26 : 0.18);
+        painter->fillPath(path, highlight);
+        painter->setOpacity(1.0);
+        painter->setPen(QPen(highlight, 1.5));
+        painter->drawPath(path);
+    } else {
+        QColor tint = option.palette.color(QPalette::Text);
+        tint.setAlphaF(0.07f);
+        painter->fillPath(path, tint);
+    }
+    painter->restore();
+}
+
+/// Ring around the icon while the game is running.
+void drawRunningRing(QPainter* painter, const QStyleOptionViewItem& option, const QRect& iconRect)
+{
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setBrush(Qt::NoBrush);
+    painter->setPen(QPen(option.palette.brush(QPalette::Highlight), 2.0));
+    painter->drawRoundedRect(QRectF(iconRect).adjusted(-3.5, -3.5, 3.5, 3.5), 9.0, 9.0);
+    painter->restore();
+}
+}  // namespace
+
 void ListViewDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
     QStyleOptionViewItem opt = option;
@@ -189,78 +251,10 @@ void ListViewDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     opt.displayAlignment = Qt::AlignTop | Qt::AlignHCenter;
 
     QStyle* style = opt.widget ? opt.widget->style() : QApplication::style();
-
-    // const int iconSize =  style->pixelMetric(QStyle::PM_IconViewIconSize);
-    const int iconSize = 48;
-    QRect iconbox = opt.rect;
     const int textMargin = style->pixelMetric(QStyle::PM_FocusFrameHMargin, 0, opt.widget) + 1;
-    QRect textRect = opt.rect;
-    QRect textHighlightRect = textRect;
-    // clip the decoration on top, remove width padding
-    textRect.adjust(textMargin, iconSize + textMargin + 5, -textMargin, 0);
+    auto* instance = instanceAt(index);
 
-    textHighlightRect.adjust(0, iconSize + 5, 0, 0);
-
-    // draw background
-    {
-        // FIXME: unused
-        // QSize textSize = viewItemTextSize ( &opt );
-        drawSelectionRect(painter, opt, textHighlightRect);
-        /*
-        QPalette::ColorGroup cg;
-        QStyleOptionViewItem opt2(opt);
-
-        if ((opt.widget && opt.widget->isEnabled()) || (opt.state & QStyle::State_Enabled))
-        {
-            if (!(opt.state & QStyle::State_Active))
-                cg = QPalette::Inactive;
-            else
-                cg = QPalette::Normal;
-        }
-        else
-        {
-            cg = QPalette::Disabled;
-        }
-        */
-        /*
-        opt2.palette.setCurrentColorGroup(cg);
-
-        // fill in background, if any
-
-
-        if (opt.backgroundBrush.style() != Qt::NoBrush)
-        {
-            QPointF oldBO = painter->brushOrigin();
-            painter->setBrushOrigin(opt.rect.topLeft());
-            painter->fillRect(opt.rect, opt.backgroundBrush);
-            painter->setBrushOrigin(oldBO);
-        }
-
-        drawSelectionRect(painter, opt2, textHighlightRect);
-        */
-
-        /*
-        if (opt.showDecorationSelected)
-        {
-            drawSelectionRect(painter, opt2, opt.rect);
-            drawFocusRect(painter, opt2, opt.rect);
-            // painter->fillRect ( opt.rect, opt.palette.brush ( cg, QPalette::Highlight ) );
-        }
-        else
-        {
-
-            // if ( opt.state & QStyle::State_Selected )
-            {
-                // QRect textRect = subElementRect ( QStyle::SE_ItemViewItemText,  opt,
-                // opt.widget );
-                // painter->fillRect ( textHighlightRect, opt.palette.brush ( cg,
-                // QPalette::Highlight ) );
-                drawSelectionRect(painter, opt2, textHighlightRect);
-                drawFocusRect(painter, opt2, textHighlightRect);
-            }
-        }
-        */
-    }
+    drawTileBackground(painter, opt);
 
     // icon mode and state, also used for badges
     QIcon::Mode mode = QIcon::Normal;
@@ -271,21 +265,20 @@ void ListViewDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     QIcon::State state = opt.state & QStyle::State_Open ? QIcon::On : QIcon::Off;
 
     // draw the icon
-    {
-        iconbox.setHeight(iconSize);
-        opt.icon.paint(painter, iconbox, Qt::AlignCenter, mode, state);
-    }
-    // set the text colors
+    const QRect iconRect(opt.rect.center().x() - tileIconSize / 2 + 1, opt.rect.top() + tilePadding, tileIconSize, tileIconSize);
+    opt.icon.paint(painter, iconRect, Qt::AlignCenter, QIcon::Normal, state);
+    if (instance && instance->isRunning())
+        drawRunningRing(painter, opt, iconRect);
+
+    // the name keeps the normal text colour; the tile background shows the selection
     QPalette::ColorGroup cg = opt.state & QStyle::State_Enabled ? QPalette::Normal : QPalette::Disabled;
     if (cg == QPalette::Normal && !(opt.state & QStyle::State_Active))
         cg = QPalette::Inactive;
-    if (opt.state & QStyle::State_Selected) {
-        painter->setPen(opt.palette.color(cg, QPalette::HighlightedText));
-    } else {
-        painter->setPen(opt.palette.color(cg, QPalette::Text));
-    }
+    const QColor textColor = opt.palette.color(cg, QPalette::Text);
+    painter->setPen(textColor);
 
-    // draw the text
+    // draw the name
+    QRect textRect = opt.rect.adjusted(textMargin, tilePadding + tileIconSize + tileIconGap, -textMargin, -tilePadding);
     QTextOption textOption;
     textOption.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
     textOption.setTextDirection(opt.direction);
@@ -307,13 +300,28 @@ void ListViewDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
         line.draw(painter, position);
     }
 
-    // FIXME: this really has no business of being here. Make generic.
-    auto instance = (BaseInstance*)index.data(InstanceList::InstancePointerRole).value<void*>();
+    // Minecraft version and mod loader, muted, on one line under the name
     if (instance) {
-        drawBadges(painter, opt, instance, mode, state);
+        const QString detail = InstanceSummary::versionLine(instance);
+        if (!detail.isEmpty()) {
+            const QFont font = detailFont(opt.font);
+            const QFontMetrics metrics(font);
+            QColor detailColor = textColor;
+            detailColor.setAlphaF(0.55f);
+            painter->setFont(font);
+            painter->setPen(detailColor);
+            const QRect detailRect(textRect.left(), layoutRect.top() + qCeil(height) + tileDetailGap, textRect.width(), metrics.height());
+            painter->drawText(detailRect, Qt::AlignHCenter | Qt::AlignTop, metrics.elidedText(detail, Qt::ElideRight, detailRect.width()));
+        }
+        QStyleOptionViewItem badgeOption = opt;
+        badgeOption.rect = opt.rect.adjusted(2, 2, -2, -2);
+        drawBadges(painter, badgeOption, instance, mode, state);
     }
 
-    drawProgressOverlay(painter, opt, index.data(InstanceViewRoles::ProgressValueRole).toInt(),
+    // update progress: a pie over the icon
+    QStyleOptionViewItem progressOption = opt;
+    progressOption.rect = iconRect;
+    drawProgressOverlay(painter, progressOption, index.data(InstanceViewRoles::ProgressValueRole).toInt(),
                         index.data(InstanceViewRoles::ProgressMaximumRole).toInt());
 
     painter->restore();
@@ -328,14 +336,11 @@ QSize ListViewDelegate::sizeHint(const QStyleOptionViewItem& option, const QMode
     opt.textElideMode = Qt::ElideRight;
     opt.displayAlignment = Qt::AlignTop | Qt::AlignHCenter;
 
-    QStyle* style = opt.widget ? opt.widget->style() : QApplication::style();
-    const int textMargin = style->pixelMetric(QStyle::PM_FocusFrameHMargin, &option, opt.widget) + 1;
-    int height = 48 + textMargin * 2 + 5;  // TODO: turn constants into variables
-    QSize szz = viewItemTextSize(&opt);
-    height += szz.height();
+    int height = tilePadding + tileIconSize + tileIconGap + viewItemTextSize(&opt).height() + tilePadding;
+    if (auto* instance = instanceAt(index); instance && !InstanceSummary::versionLine(instance).isEmpty())
+        height += tileDetailGap + QFontMetrics(detailFont(opt.font)).height();
     // FIXME: maybe the icon items could scale and keep proportions?
-    QSize sz(100, height);
-    return sz;
+    return QSize(100, height);
 }
 
 class NoReturnTextEdit : public QTextEdit {
@@ -371,10 +376,9 @@ void ListViewDelegate::updateEditorGeometry(QWidget* editor,
                                             const QStyleOptionViewItem& option,
                                             [[maybe_unused]] const QModelIndex& index) const
 {
-    const int iconSize = 48;
     QRect textRect = option.rect;
     // QStyle *style = option.widget ? option.widget->style() : QApplication::style();
-    textRect.adjust(0, iconSize + 5, 0, 0);
+    textRect.adjust(0, tilePadding + tileIconSize + tileIconGap, 0, 0);
     editor->setGeometry(textRect);
 }
 

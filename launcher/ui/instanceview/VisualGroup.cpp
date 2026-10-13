@@ -43,6 +43,7 @@
 #include <QtMath>
 #include <utility>
 
+#include "InstanceProxyModel.h"
 #include "InstanceView.h"
 
 VisualGroup::VisualGroup(QString text, InstanceView* view) : view(view), text(std::move(text)), collapsed(false) {}
@@ -160,7 +161,12 @@ void VisualGroup::drawHeader(QPainter* painter, const QStyleOptionViewItem& opti
     const int arrowOffsetLeft = fontMetrics.height() / 2 + 7;
     const int textOffsetLeft = arrowOffsetLeft * 2;
     const int centerHeight = optRect.top() + fontMetrics.height() / 2;
-    const QString& textToDraw = text.isEmpty() ? QObject::tr("Ungrouped") : text;
+    QString textToDraw = text;
+    if (text.isEmpty()) {
+        textToDraw = QObject::tr("Ungrouped");
+    } else if (text == InstanceProxyModel::favoritesGroup()) {
+        textToDraw = QString(QChar(0x2605)) + QStringLiteral(" ") + QObject::tr("Favorites");
+    }
 
     // BEGIN: arrow
     {

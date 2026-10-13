@@ -48,6 +48,7 @@
 #include <QScrollBar>
 #include <QtMath>
 
+#include "InstanceProxyModel.h"
 #include "VisualGroup.h"
 #include "ui/themes/CatPainter.h"
 #include "ui/themes/ThemeManager.h"
@@ -73,6 +74,8 @@ InstanceView::InstanceView(QWidget* parent) : QAbstractItemView(parent)
     setAcceptDrops(true);
     setAutoScroll(true);
     setPaintCat(APPLICATION->settings()->get("TheCat").toBool());
+    // needed for hover highlights on the instance tiles
+    viewport()->setMouseTracking(true);
     connect(verticalScrollBar(), &QScrollBar::valueChanged, viewport(), QOverload<>::of(&QWidget::update));
     connect(horizontalScrollBar(), &QScrollBar::valueChanged, viewport(), QOverload<>::of(&QWidget::update));
 }
@@ -203,6 +206,13 @@ void InstanceView::updateGeometries()
 
     qDeleteAll(m_groups);
     m_groups = cats.values();
+    // favourites are pinned above every other group
+    for (int i = 0; i < m_groups.size(); ++i) {
+        if (m_groups[i]->text == InstanceProxyModel::favoritesGroup()) {
+            m_groups.move(i, 0);
+            break;
+        }
+    }
     updateScrollbar();
     viewport()->update();
 }
@@ -320,6 +330,8 @@ void InstanceView::mousePressEvent(QMouseEvent* event)
 void InstanceView::mouseMoveEvent(QMouseEvent* event)
 {
     executeDelayedItemsLayout();
+
+    setHoveredIndex(event->buttons() == Qt::NoButton ? indexAt(event->pos()) : QModelIndex());
 
     QPoint topLeft;
     QPoint visualPos = event->pos();
@@ -440,6 +452,21 @@ void InstanceView::mouseDoubleClickEvent(QMouseEvent* event)
     }
 }
 
+void InstanceView::setHoveredIndex(const QModelIndex& index)
+{
+    if (index == m_hoveredIndex)
+        return;
+    m_hoveredIndex = index;
+    viewport()->update();
+}
+
+bool InstanceView::viewportEvent(QEvent* event)
+{
+    if (event->type() == QEvent::Leave)
+        setHoveredIndex(QModelIndex());
+    return QAbstractItemView::viewportEvent(event);
+}
+
 void InstanceView::setPaintCat(bool visible)
 {
     if (m_cat) {
@@ -469,11 +496,15 @@ void InstanceView::paintEvent([[maybe_unused]] QPaintEvent* event)
 
     if (model()->rowCount() == 0) {
         painter.save();
-        QString emptyString = tr("Welcome!") + "\n" + tr("Click \"Add Instance\" to get started.");
+        // instances exist, but the search hides all of them
+        auto* proxy = qobject_cast<QSortFilterProxyModel*>(model());
+        const bool everythingFiltered = proxy && proxy->sourceModel() && proxy->sourceModel()->rowCount() > 0;
+        QString emptyString = everythingFiltered ? tr("No instances match your search.")
+                                                 : tr("Welcome!") + "\n" + tr("Click \"Add Instance\" to get started.");
 
-        // calculate the rect for the overlay
         painter.setRenderHint(QPainter::Antialiasing, true);
-        QFont font("sans", 20);
+        QFont font = QApplication::font();
+        font.setPointSizeF(font.pointSizeF() * 1.6);
         font.setBold(true);
 
         QRect bounds = viewport()->geometry();
@@ -481,28 +512,21 @@ void InstanceView::paintEvent([[maybe_unused]] QPaintEvent* event)
         auto innerBounds = bounds;
         innerBounds.adjust(10, 10, -10, -10);
 
-        QColor background = QApplication::palette().color(QPalette::WindowText);
-        QColor foreground = QApplication::palette().color(QPalette::Base);
-        foreground.setAlpha(190);
+        // plain text in the view's own colours, so it fits whatever theme is active
+        QColor foreground = palette().color(QPalette::Text);
+        foreground.setAlphaF(0.55f);
         painter.setFont(font);
         auto fontMetrics = painter.fontMetrics();
         auto textRect = fontMetrics.boundingRect(innerBounds, Qt::AlignHCenter | Qt::TextWordWrap, emptyString);
         textRect.moveCenter(bounds.center());
 
-        auto wrapRect = textRect;
-        wrapRect.adjust(-10, -10, 10, 10);
-
         // check if we are allowed to draw in our area
-        if (!event->rect().intersects(wrapRect)) {
+        if (!event->rect().intersects(textRect)) {
+            painter.restore();
             return;
         }
 
-        painter.setBrush(QBrush(background));
         painter.setPen(foreground);
-        painter.drawRoundedRect(wrapRect, 5.0, 5.0);
-
-        painter.setPen(foreground);
-        painter.setFont(font);
         painter.drawText(textRect, Qt::AlignHCenter | Qt::TextWordWrap, emptyString);
 
         painter.restore();
@@ -540,6 +564,11 @@ void InstanceView::paintEvent([[maybe_unused]] QPaintEvent* event)
             option.state &= ~QStyle::State_Selected;
         }
         option.state |= (index == currentIndex()) ? QStyle::State_HasFocus : QStyle::State_None;
+        if (index == m_hoveredIndex) {
+            option.state |= QStyle::State_MouseOver;
+        } else {
+            option.state &= ~QStyle::State_MouseOver;
+        }
         if (!(flags & Qt::ItemIsEnabled)) {
             option.state &= ~QStyle::State_Enabled;
         }
@@ -645,7 +674,16 @@ void InstanceView::dropEvent(QDropEvent* event)
             }
             auto instanceId = QString::fromUtf8(mimedata->data("application/x-instanceid"));
             auto instanceList = APPLICATION->instances();
-            instanceList->setInstanceGroup(instanceId, group->text);
+            auto instance = instanceList->getInstanceById(instanceId);
+            if (group->text == InstanceProxyModel::favoritesGroup()) {
+                // dropping onto Favorites pins the instance; its own group stays as it was
+                if (instance)
+                    instance->setFavorite(true);
+            } else {
+                if (instance)
+                    instance->setFavorite(false);
+                instanceList->setInstanceGroup(instanceId, group->text);
+            }
             event->setDropAction(Qt::MoveAction);
             event->accept();
 

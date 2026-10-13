@@ -40,6 +40,9 @@ class WideBar : public QToolBar {
 
     void removeAction(QAction* action);
 
+   protected:
+    bool event(QEvent* event) override;
+
    private:
     struct BarEntry {
         enum class Type { None, Action, Separator, Spacer } type = Type::None;

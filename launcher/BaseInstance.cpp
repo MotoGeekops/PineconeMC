@@ -88,6 +88,8 @@ BaseInstance::BaseInstance(SettingsObject* globalSettings, std::unique_ptr<Setti
         m_settings->reset("totalTimePlayed");
     m_settings->registerSetting("lastTimePlayed", 0);
 
+    m_settings->registerSetting("Favorite", false);
+
     m_settings->registerSetting("linkedInstances", "[]");
     m_settings->registerSetting("shortcuts", QString());
     m_settings->registerSetting("uuid", QString());
@@ -381,6 +383,19 @@ void BaseInstance::setLastLaunch(qint64 val)
 {
     // FIXME: if no change, do not set. setting involves saving a file.
     m_settings->set("lastLaunchTime", val);
+    emit propertiesChanged(this);
+}
+
+bool BaseInstance::isFavorite() const
+{
+    return m_settings->get("Favorite").toBool();
+}
+
+void BaseInstance::setFavorite(bool favorite)
+{
+    if (isFavorite() == favorite)
+        return;
+    m_settings->set("Favorite", favorite);
     emit propertiesChanged(this);
 }
 

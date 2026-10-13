@@ -812,6 +812,10 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
         m_settings->registerSetting("ToolbarsLocked", false);
 
+        // main window: "Continue playing" card and the Favorites group
+        m_settings->registerSetting("ShowContinueCard", true);
+        m_settings->registerSetting("FavoritesCollapsed", false);
+
         // Instance
         m_settings->registerSetting("InstSortMode", "Name");
         m_settings->registerSetting("InstRenamingMode", "AskEverytime");
@@ -1245,12 +1249,16 @@ bool Application::createSetupWizard()
     bool wizardRequired = javaRequired || languageRequired || pasteInterventionRequired || themeInterventionRequired || askjava || login;
     if (wizardRequired) {
         // set default theme after going into theme wizard
+#if defined(Q_OS_WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+        const bool systemIsDark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+#else
+        const bool systemIsDark = false;
+#endif
         if (!validIcons)
-            settings()->set("IconTheme", QString("pe_colored"));
+            settings()->set("IconTheme", systemIsDark ? QStringLiteral("pinecone") : QStringLiteral("pe_colored"));
         if (!validWidgets) {
 #if defined(Q_OS_WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-            const QString style =
-                QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark ? QStringLiteral("dark") : QStringLiteral("bright");
+            const QString style = systemIsDark ? QStringLiteral("pinecone") : QStringLiteral("bright");
 #else
             const QString style = QStringLiteral("system");
 #endif

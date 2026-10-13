@@ -85,7 +85,11 @@ AppearanceWidget::AppearanceWidget(bool themesOnly, QWidget* parent)
             [] { DesktopServices::openPath(APPLICATION->themeManager()->getApplicationThemesFolder().path()); });
     connect(m_ui->catPackFolder, &QPushButton::clicked, this,
             [] { DesktopServices::openPath(APPLICATION->themeManager()->getCatPacksFolder().path()); });
-    connect(m_ui->reloadThemesButton, &QPushButton::pressed, this, &AppearanceWidget::loadThemeSettings);
+    connect(m_ui->reloadThemesButton, &QPushButton::pressed, this, [this] {
+        loadThemeSettings();
+        // re-apply the selected theme too, so edits to its files show up right away
+        APPLICATION->themeManager()->applyCurrentlySelectedTheme();
+    });
 }
 
 AppearanceWidget::~AppearanceWidget()

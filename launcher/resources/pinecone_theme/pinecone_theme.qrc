@@ -1,0 +1,21 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/themes/pinecone">
+        <file>themeStyle.css</file>
+        <file>resources/check-disabled.svg</file>
+        <file>resources/check-green.svg</file>
+        <file>resources/check.svg</file>
+        <file>resources/chevron-down-dark.svg</file>
+        <file>resources/chevron-down-disabled.svg</file>
+        <file>resources/chevron-down-hover.svg</file>
+        <file>resources/chevron-down.svg</file>
+        <file>resources/chevron-right.svg</file>
+        <file>resources/chevron-up.svg</file>
+        <file>resources/dash.svg</file>
+        <file>resources/dot-green.svg</file>
+        <file>resources/grip-h.svg</file>
+        <file>resources/grip-v.svg</file>
+        <file>resources/radio-dot-disabled.svg</file>
+        <file>resources/radio-dot.svg</file>
+    </qresource>
+</RCC>

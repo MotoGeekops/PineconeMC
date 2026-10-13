@@ -51,6 +51,9 @@
 
 class LaunchController;
 class NewsChecker;
+class ContinueCard;
+class ElidedLinesLabel;
+class QLineEdit;
 class QToolButton;
 class InstanceProxyModel;
 class LabeledToolButton;
@@ -225,6 +228,13 @@ class MainWindow : public QMainWindow {
     void updateInstanceToolIcon(QString new_icon);
     void setSelectedInstanceById(const QString& id);
     void updateStatusCenter();
+    void updateInstanceDetails();
+    void updateFavoriteControls();
+    void updateStarIcons();
+    void positionFavoriteButton();
+    void updateHeaderDensity();
+    void instanceSearchChanged(const QString& text);
+    void updateContinueCardVisibility();
     void setInstanceActionsEnabled(bool enabled);
 
     void runModalTask(Task* task);
@@ -240,6 +250,15 @@ class MainWindow : public QMainWindow {
     QLabel* m_statusCenter = nullptr;
     LabeledToolButton* changeIconButton = nullptr;
     LabeledToolButton* renameButton = nullptr;
+    ElidedLinesLabel* instanceDetails = nullptr;
+    QToolButton* favoriteButton = nullptr;
+    QAction* actionToggleFavorite = nullptr;
+    QAction* actionShowContinueCard = nullptr;
+    QIcon m_starIcon;
+    QLineEdit* searchField = nullptr;
+    int m_headerFullWidth = 0;  // width the main toolbar needs with button labels
+    QString m_selectedBeforeSearch;
+    ContinueCard* continueCard = nullptr;
     QToolButton* helpMenuButton = nullptr;
     KonamiCode* secretEventFilter = nullptr;
 

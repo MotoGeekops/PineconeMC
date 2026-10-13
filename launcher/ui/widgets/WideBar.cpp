@@ -12,6 +12,9 @@ class ActionButton : public QToolButton {
     {
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        // lets themes target a button by its action, independent of the UI language
+        if (!action->objectName().isEmpty())
+            setObjectName(action->objectName());
         // workaround for breeze and breeze forks
         setProperty("_kde_toolButton_alignment", Qt::AlignLeft);
 
@@ -64,6 +67,18 @@ WideBar::WideBar(QWidget* parent) : QToolBar(parent)
 
     setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
     connect(this, &QToolBar::customContextMenuRequested, this, &WideBar::showVisibilityMenu);
+}
+
+bool WideBar::event(QEvent* event)
+{
+    const bool result = QToolBar::event(event);
+    if (event->type() == QEvent::Polish) {
+        // QToolBar reads its padding from the style when constructed, before setupUi() gives it
+        // an object name. Re-read it now so "#objectName" style sheet rules reach the layout.
+        QEvent styleChange(QEvent::StyleChange);
+        QToolBar::changeEvent(&styleChange);
+    }
+    return result;
 }
 
 void WideBar::addAction(QAction* action)

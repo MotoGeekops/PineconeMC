@@ -62,6 +62,8 @@ QPalette BrightTheme::colorScheme()
     brightPalette.setColor(QPalette::Link, QColor(37, 137, 164));
     brightPalette.setColor(QPalette::Highlight, QColor(137, 207, 84));
     brightPalette.setColor(QPalette::HighlightedText, Qt::black);
+    // set explicitly: otherwise it comes from the system palette, which is near-white in Windows dark mode
+    brightPalette.setColor(QPalette::PlaceholderText, QColor(128, 128, 128));
     return fadeInactive(brightPalette, fadeAmount(), fadeColor());
 }
 

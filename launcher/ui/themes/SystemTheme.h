@@ -51,6 +51,7 @@ class SystemTheme : public ITheme {
     QPalette colorScheme() override;
     double fadeAmount() override;
     QColor fadeColor() override;
+    QColor titlebarColor() override { return {}; }
 
    private:
     QPalette m_colorPalette;

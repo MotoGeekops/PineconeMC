@@ -62,6 +62,8 @@ class ITheme {
     virtual QColor fadeColor() = 0;
     virtual double fadeAmount() = 0;
     virtual LogColors logColorScheme() { return defaultLogColors(colorScheme()); }
+    /// Colour for native window title bars; an invalid colour keeps the system's.
+    virtual QColor titlebarColor() { return colorScheme().color(QPalette::Window); }
     virtual QStringList searchPaths() { return {}; }
 
     static QPalette fadeInactive(QPalette in, qreal bias, QColor color);

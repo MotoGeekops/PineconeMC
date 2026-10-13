@@ -17,6 +17,7 @@
 
 #include <QCollator>
 #include <QSortFilterProxyModel>
+#include <QStringList>
 
 class InstanceProxyModel : public QSortFilterProxyModel {
     Q_OBJECT
@@ -24,11 +25,24 @@ class InstanceProxyModel : public QSortFilterProxyModel {
    public:
     InstanceProxyModel(QObject* parent = 0);
 
+    /// Group id given to favourite instances, so they form their own group above all others.
+    /// It starts with a control character, so it can't clash with a group the user typed.
+    static const QString& favoritesGroup();
+
+    /// Keep only instances whose name, group, Minecraft version or mod loader contain every word of the query.
+    void setFilterQuery(const QString& query);
+    bool isFiltering() const { return !m_queryWords.isEmpty(); }
+
    protected:
     QVariant data(const QModelIndex& index, int role) const override;
     bool lessThan(const QModelIndex& left, const QModelIndex& right) const override;
+    bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;
     bool subSortLessThan(const QModelIndex& left, const QModelIndex& right) const;
 
    private:
+    /// The group an instance is shown in: its own, or favoritesGroup() when it is a favourite.
+    QString groupOf(const QModelIndex& sourceIndex) const;
+
     QCollator m_naturalSort;
+    QStringList m_queryWords;
 };

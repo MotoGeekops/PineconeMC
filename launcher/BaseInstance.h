@@ -183,6 +183,10 @@ class BaseInstance : public QObject {
     /// Sets the last launched time to 'val' milliseconds since epoch
     void setLastLaunch(qint64 val = QDateTime::currentMSecsSinceEpoch());
 
+    /// Favourite instances are pinned to the top of the instance view.
+    bool isFavorite() const;
+    void setFavorite(bool favorite);
+
     /*!
      * \brief Gets this instance's settings object.
      * This settings object stores instance-specific settings.

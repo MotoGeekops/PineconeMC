@@ -61,17 +61,21 @@
 #include <QInputDialog>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPainter>
 #include <QProgressDialog>
 #include <QShortcut>
 #include <QStatusBar>
 #include <QToolBar>
 #include <QToolButton>
+#include <QVBoxLayout>
 #include <QWidget>
 #include <QWidgetAction>
+#include <QtMath>
 #include <memory>
 
 #include <BaseInstance.h>
@@ -107,9 +111,12 @@
 #include "ui/dialogs/ProgressDialog.h"
 #include "ui/instanceview/InstanceDelegate.h"
 #include "ui/instanceview/InstanceProxyModel.h"
+#include "ui/instanceview/InstanceSummary.h"
 #include "ui/instanceview/InstanceView.h"
 #include "ui/themes/ITheme.h"
 #include "ui/themes/ThemeManager.h"
+#include "ui/widgets/ContinueCard.h"
+#include "ui/widgets/ElidedLinesLabel.h"
 #include "ui/widgets/LabeledToolButton.h"
 
 #include "minecraft/PackProfile.h"
@@ -142,6 +149,42 @@ QString profileInUseFilter(const QString& profile, bool used)
     } else {
         return profile;
     }
+}
+
+/// Star for the favourite toggle: outlined when off, filled with the highlight colour when on.
+/// Drawn rather than taken from the icon theme, so every icon theme gets one.
+QIcon makeStarIcon(const QPalette& palette)
+{
+    QIcon icon;
+    for (const bool filled : { false, true }) {
+        QPixmap pixmap(QSize(36, 36));
+        pixmap.fill(Qt::transparent);
+        pixmap.setDevicePixelRatio(2.0);  // 18x18, crisp on high-DPI screens
+
+        QPolygonF star;
+        for (int i = 0; i < 10; ++i) {
+            const qreal radius = (i % 2) ? 3.6 : 8.2;
+            const qreal angle = -M_PI / 2 + i * M_PI / 5;
+            star << QPointF(9 + radius * qCos(angle), 9.6 + radius * qSin(angle));
+        }
+
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing);
+        if (filled) {
+            const QColor color = palette.color(QPalette::Highlight);
+            painter.setPen(QPen(color, 1.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            painter.setBrush(color);
+        } else {
+            QColor color = palette.color(QPalette::Text);
+            color.setAlphaF(0.6f);
+            painter.setPen(QPen(color, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            painter.setBrush(Qt::NoBrush);
+        }
+        painter.drawPolygon(star);
+        painter.end();
+        icon.addPixmap(pixmap, QIcon::Normal, filled ? QIcon::On : QIcon::Off);
+    }
+    return icon;
 }
 }  // namespace
 
@@ -177,6 +220,33 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         connect(renameButton, &QToolButton::clicked, this, &MainWindow::on_actionRenameInstance_triggered);
         ui->instanceToolBar->insertWidgetBefore(ui->actionLaunchInstance, renameButton);
 
+        // version, loader, mods and playtime of the selected instance
+        instanceDetails = new ElidedLinesLabel(this);
+        instanceDetails->setObjectName(QStringLiteral("instanceDetails"));
+        ui->instanceToolBar->insertWidgetBefore(ui->actionLaunchInstance, instanceDetails);
+
+        // favourite star, pinned to the corner of the big instance icon
+        favoriteButton = new QToolButton(changeIconButton);
+        favoriteButton->setObjectName(QStringLiteral("favoriteButton"));
+        favoriteButton->setCheckable(true);
+        favoriteButton->setAutoRaise(true);
+        favoriteButton->setCursor(Qt::PointingHandCursor);
+        favoriteButton->setIconSize(QSize(18, 18));
+        favoriteButton->setFocusPolicy(Qt::NoFocus);
+        connect(favoriteButton, &QToolButton::clicked, this, [this](bool checked) {
+            if (m_selectedInstance)
+                m_selectedInstance->setFavorite(checked);
+        });
+        changeIconButton->installEventFilter(this);
+
+        actionToggleFavorite = new QAction(this);
+        actionToggleFavorite->setObjectName(QStringLiteral("actionToggleFavorite"));
+        connect(actionToggleFavorite, &QAction::triggered, this, [this] {
+            if (m_selectedInstance)
+                m_selectedInstance->setFavorite(!m_selectedInstance->isFavorite());
+        });
+        updateStarIcons();
+
         ui->instanceToolBar->insertSeparator(ui->actionLaunchInstance);
 
         // restore the instance toolbar settings
@@ -189,6 +259,15 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         ui->instanceToolBar->addContextMenuAction(ui->instanceToolBar->toggleViewAction());
         ui->instanceToolBar->addContextMenuAction(ui->actionToggleStatusBar);
         ui->instanceToolBar->addContextMenuAction(ui->actionLockToolbars);
+
+        actionShowContinueCard = new QAction(this);
+        actionShowContinueCard->setCheckable(true);
+        actionShowContinueCard->setChecked(APPLICATION->settings()->get("ShowContinueCard").toBool());
+        connect(actionShowContinueCard, &QAction::toggled, this, [this](bool shown) {
+            APPLICATION->settings()->set("ShowContinueCard", shown);
+            updateContinueCardVisibility();
+        });
+        ui->instanceToolBar->addContextMenuAction(actionShowContinueCard);
     }
 
     // set the menu for the folders help, accounts, and export tool buttons
@@ -211,6 +290,15 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         exportInstanceMenu->addAction(ui->actionExportInstanceMrPack);
         exportInstanceMenu->addAction(ui->actionExportInstanceFlamePack);
         ui->actionExportInstance->setMenu(exportInstanceMenu);
+    }
+
+    // name toolbar buttons after their actions, so themes can style them in any language
+    for (auto* toolbar : { ui->mainToolBar, ui->newsToolBar }) {
+        for (auto* action : toolbar->actions()) {
+            auto* button = toolbar->widgetForAction(action);
+            if (button && button->objectName().isEmpty() && !action->objectName().isEmpty())
+                button->setObjectName(action->objectName());
+        }
     }
 
     // hide, disable and show stuff
@@ -247,6 +335,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     // add the toolbar toggles to the view menu
     ui->viewMenu->addAction(ui->instanceToolBar->toggleViewAction());
     ui->viewMenu->addAction(ui->newsToolBar->toggleViewAction());
+    ui->viewMenu->addAction(actionShowContinueCard);
 
     updateThemeMenu();
     updateMainToolBar();
@@ -278,6 +367,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     {
         m_newsChecker.reset(new NewsChecker(APPLICATION->network(), BuildConfig.NEWS_RSS_URL));
         newsLabel = new QToolButton();
+        newsLabel->setObjectName(QStringLiteral("newsLabel"));
         newsLabel->setIcon(QIcon::fromTheme("news"));
         newsLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         newsLabel->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -329,10 +419,31 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         connect(proxymodel, &InstanceProxyModel::dataChanged, this, &MainWindow::instanceDataChanged);
 
         view->setModel(proxymodel);
-        view->setSourceOfGroupCollapseStatus(
-            [](const QString& groupName) -> bool { return APPLICATION->instances()->isGroupCollapsed(groupName); });
-        connect(view, &InstanceView::groupStateChanged, APPLICATION->instances(), &InstanceList::on_GroupStateChanged);
-        ui->horizontalLayout->addWidget(view);
+        // Favorites isn't a real group, so its collapsed state is kept in the launcher settings
+        view->setSourceOfGroupCollapseStatus([](const QString& groupName) -> bool {
+            if (groupName == InstanceProxyModel::favoritesGroup())
+                return APPLICATION->settings()->get("FavoritesCollapsed").toBool();
+            return APPLICATION->instances()->isGroupCollapsed(groupName);
+        });
+        connect(view, &InstanceView::groupStateChanged, this, [](const QString& group, bool collapsed) {
+            if (group == InstanceProxyModel::favoritesGroup())
+                APPLICATION->settings()->set("FavoritesCollapsed", collapsed);
+            else
+                APPLICATION->instances()->on_GroupStateChanged(group, collapsed);
+        });
+
+        // the "Continue playing" card sits above the instance grid
+        auto* instanceArea = new QWidget(ui->centralWidget);
+        instanceArea->setObjectName(QStringLiteral("instanceArea"));
+        auto* instanceAreaLayout = new QVBoxLayout(instanceArea);
+        instanceAreaLayout->setContentsMargins(0, 0, 0, 0);
+        instanceAreaLayout->setSpacing(0);
+        continueCard = new ContinueCard(instanceArea);
+        connect(continueCard, &ContinueCard::hideRequested, this, [this] { actionShowContinueCard->setChecked(false); });
+        instanceAreaLayout->addWidget(continueCard);
+        instanceAreaLayout->addWidget(view, 1);
+        ui->horizontalLayout->addWidget(instanceArea);
+        updateContinueCardVisibility();
     }
     // The cat background
     {
@@ -388,6 +499,29 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->mainToolBar->insertWidget(ui->actionAccountsButton, spacer);
 
+    // instance search, next to the accounts button
+    {
+        searchField = new QLineEdit(this);
+        searchField->setObjectName(QStringLiteral("instanceSearch"));
+        searchField->setClearButtonEnabled(true);
+        searchField->setMinimumWidth(170);
+        searchField->setMaximumWidth(260);
+        searchField->addAction(QIcon::fromTheme("search"), QLineEdit::LeadingPosition);
+        searchField->installEventFilter(this);
+        ui->mainToolBar->insertWidget(ui->actionAccountsButton, searchField);
+        connect(searchField, &QLineEdit::textChanged, this, &MainWindow::instanceSearchChanged);
+        connect(searchField, &QLineEdit::returnPressed, this, [this] { view->setFocus(); });
+
+        auto* findShortcut = new QShortcut(QKeySequence::Find, this);
+        connect(findShortcut, &QShortcut::activated, this, [this] {
+            searchField->setFocus(Qt::ShortcutFocusReason);
+            searchField->selectAll();
+        });
+
+        // drop the button labels when the header gets too narrow (see updateHeaderDensity)
+        ui->mainToolBar->installEventFilter(this);
+    }
+
     // Use undocumented property... https://stackoverflow.com/questions/7121718/create-a-scrollbar-in-a-submenu-qt
     ui->accountsMenu->setStyleSheet("QMenu { menu-scrollable: 1; }");
 
@@ -432,6 +566,13 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     // removing this looks stupid
     view->setFocus();
 
+    // QToolBar reads its padding from the style when it is constructed, before setupUi() names it,
+    // so rules like "QToolBar#instanceToolBar { padding: ... }" never reached the layout. Re-read it.
+    for (auto* toolbar : findChildren<QToolBar*>()) {
+        QEvent styleChange(QEvent::StyleChange);
+        QCoreApplication::sendEvent(toolbar, &styleChange);
+    }
+
     retranslateUi();
 }
 
@@ -465,6 +606,12 @@ void MainWindow::retranslateUi()
 
     changeIconButton->setToolTip(ui->actionChangeInstIcon->toolTip());
     renameButton->setToolTip(ui->actionRenameInstance->toolTip());
+
+    searchField->setPlaceholderText(tr("Search instances"));
+    searchField->setToolTip(tr("Filter by name, group, Minecraft version or mod loader (%1)")
+                                .arg(QKeySequence(QKeySequence::Find).toString(QKeySequence::NativeText)));
+    actionShowContinueCard->setText(tr("Show \"Continue playing\""));
+    updateFavoriteControls();
 
     // replace the %1 with the launcher display name in some actions
     if (helpMenuButton->toolTip().contains("%1"))
@@ -545,6 +692,7 @@ void MainWindow::showInstanceContextMenu(const QPoint& pos)
 
         actions.prepend(ui->actionChangeInstIcon);
         actions.prepend(ui->actionRenameInstance);
+        actions.insert(2, actionToggleFavorite);
 
         // add header
         actions.prepend(actionSep);
@@ -553,8 +701,12 @@ void MainWindow::showInstanceContextMenu(const QPoint& pos)
         actions.prepend(actionVoid);
     } else {
         auto group = view->groupNameAt(pos);
+        // Favorites is not a real group: it can't be renamed, deleted or created into
+        const bool favorites = group == InstanceProxyModel::favoritesGroup();
+        if (favorites)
+            group = QString();
 
-        QAction* actionVoid = new QAction(group.isNull() ? BuildConfig.LAUNCHER_DISPLAYNAME : group, this);
+        QAction* actionVoid = new QAction(favorites ? tr("Favorites") : group.isNull() ? BuildConfig.LAUNCHER_DISPLAYNAME : group, this);
         actionVoid->setEnabled(false);
 
         QAction* actionCreateInstance = new QAction(tr("&Create instance"), this);
@@ -797,7 +949,114 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
             }
         }
     }
+    if (obj == changeIconButton && (ev->type() == QEvent::Resize || ev->type() == QEvent::Show)) {
+        positionFavoriteButton();
+    }
+    if (obj == ui->mainToolBar && (ev->type() == QEvent::Resize || ev->type() == QEvent::LayoutRequest)) {
+        updateHeaderDensity();
+    }
+    if (obj == searchField && ev->type() == QEvent::KeyPress) {
+        auto* keyEvent = static_cast<QKeyEvent*>(ev);
+        // Esc clears the search, a second Esc (or Down) moves on to the instances
+        if (keyEvent->key() == Qt::Key_Escape) {
+            if (searchField->text().isEmpty())
+                view->setFocus();
+            else
+                searchField->clear();
+            return true;
+        }
+        if (keyEvent->key() == Qt::Key_Down) {
+            view->setFocus();
+            return true;
+        }
+    }
     return QMainWindow::eventFilter(obj, ev);
+}
+
+void MainWindow::updateHeaderDensity()
+{
+    // Show "icon + label" buttons when they fit, icons only (labels stay in the tooltips) when they don't,
+    // so a small window never pushes the accounts button into the toolbar's overflow menu.
+    auto* bar = ui->mainToolBar;
+    if (!bar->isVisible())
+        return;
+    if (bar->toolButtonStyle() == Qt::ToolButtonTextBesideIcon)
+        m_headerFullWidth = bar->sizeHint().width();
+    const bool compact = bar->toolButtonStyle() == Qt::ToolButtonIconOnly;
+    // a little hysteresis, so it doesn't flicker at the boundary
+    const int needed = m_headerFullWidth + (compact ? 12 : 0);
+    const auto style = needed <= bar->width() ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly;
+    if (style != bar->toolButtonStyle())
+        bar->setToolButtonStyle(style);
+}
+
+void MainWindow::positionFavoriteButton()
+{
+    favoriteButton->adjustSize();
+    favoriteButton->move(changeIconButton->width() - favoriteButton->width() - 6, 6);
+    favoriteButton->raise();
+}
+
+void MainWindow::updateStarIcons()
+{
+    const QIcon star = makeStarIcon(palette());
+    favoriteButton->setIcon(star);
+    m_starIcon = star;
+    updateFavoriteControls();
+}
+
+void MainWindow::updateFavoriteControls()
+{
+    const bool favorite = m_selectedInstance && m_selectedInstance->isFavorite();
+    favoriteButton->setVisible(m_selectedInstance != nullptr);
+    favoriteButton->setChecked(favorite);
+    favoriteButton->setToolTip(favorite ? tr("Remove from Favorites") : tr("Add to Favorites"));
+    favoriteButton->setAccessibleName(favoriteButton->toolTip());
+    actionToggleFavorite->setText(favorite ? tr("Remove from &Favorites") : tr("Add to &Favorites"));
+    actionToggleFavorite->setEnabled(m_selectedInstance != nullptr);
+    // the menu shows the state through the icon: filled when it is a favourite
+    actionToggleFavorite->setIcon(QIcon(m_starIcon.pixmap(QSize(18, 18), devicePixelRatioF(), QIcon::Normal, favorite ? QIcon::On : QIcon::Off)));
+}
+
+void MainWindow::updateInstanceDetails()
+{
+    if (!m_selectedInstance) {
+        instanceDetails->setLines({});
+        return;
+    }
+    // short lines: the panel is narrow, and the status bar already has the full playtime
+    QStringList lines;
+    const auto version = InstanceSummary::versionLine(m_selectedInstance);
+    if (!version.isEmpty())
+        lines << version;
+    if (const int mods = InstanceSummary::modCount(m_selectedInstance); mods > 0)
+        lines << (mods == 1 ? tr("1 mod") : tr("%1 mods").arg(mods));
+    const auto lastLaunch = m_selectedInstance->lastLaunch();
+    lines << (lastLaunch > 0 ? tr("Played %1").arg(InstanceSummary::relativeTime(lastLaunch)) : tr("Never played"));
+    instanceDetails->setLines(lines);
+}
+
+void MainWindow::instanceSearchChanged(const QString& text)
+{
+    // remember the selection from before the search, to bring it back when the search is cleared
+    if (!proxymodel->isFiltering() && !text.trimmed().isEmpty())
+        m_selectedBeforeSearch = APPLICATION->settings()->get("SelectedInstance").toString();
+
+    proxymodel->setFilterQuery(text);
+
+    if (!view->selectionModel()->currentIndex().isValid()) {
+        if (!proxymodel->isFiltering())
+            setSelectedInstanceById(m_selectedBeforeSearch);
+        else if (proxymodel->rowCount() > 0)
+            view->selectionModel()->setCurrentIndex(proxymodel->index(0, 0), QItemSelectionModel::ClearAndSelect);
+    }
+    updateContinueCardVisibility();
+}
+
+void MainWindow::updateContinueCardVisibility()
+{
+    // a search means the user is looking for something else
+    continueCard->setAllowed(APPLICATION->settings()->get("ShowContinueCard").toBool() && !proxymodel->isFiltering());
 }
 
 void MainWindow::updateNewsLabel()
@@ -1593,6 +1852,9 @@ void MainWindow::changeEvent(QEvent* event)
 {
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
+    } else if (event->type() == QEvent::PaletteChange && favoriteButton) {
+        // the favourite star is drawn in the theme's colours
+        updateStarIcons();
     }
     QMainWindow::changeEvent(event);
 }
@@ -1676,6 +1938,8 @@ void MainWindow::instanceChanged(const QModelIndex& current, [[maybe_unused]] co
         ui->actionKillInstance->setEnabled(m_selectedInstance->isRunning());
         ui->actionExportInstance->setEnabled(m_selectedInstance->canExport());
         renameButton->setText(m_selectedInstance->name());
+        updateInstanceDetails();
+        updateFavoriteControls();
         m_statusLeft->setText(m_selectedInstance->getStatusbarDescription());
         updateStatusCenter();
         updateInstanceToolIcon(m_selectedInstance->iconKey());
@@ -1718,6 +1982,8 @@ void MainWindow::selectionBad()
     setInstanceActionsEnabled(false);
     updateLaunchButton();
     renameButton->setText(tr("Rename Instance"));
+    updateInstanceDetails();
+    updateFavoriteControls();
     updateInstanceToolIcon("grass");
 
     // ...and then see if we can enable the previously selected instance

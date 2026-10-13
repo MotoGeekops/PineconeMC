@@ -30,7 +30,9 @@
 #include "ui/themes/CatPack.h"
 #include "ui/themes/CustomTheme.h"
 #include "ui/themes/DarkTheme.h"
+#include "ui/themes/PineconeTheme.h"
 #include "ui/themes/SystemTheme.h"
+#include "ui/themes/TitlebarColorizer.h"
 
 #include "Application.h"
 #include "settings/SettingsObject.h"
@@ -46,6 +48,10 @@ ThemeManager::ThemeManager()
     themeDebugLog() << "System theme seems to be:" << m_defaultStyle;
 
     m_defaultPalette = QApplication::palette();
+
+#ifdef Q_OS_WIN
+    m_titlebarColorizer = new TitlebarColorizer(qApp);
+#endif
 
     initializeThemes();
     initializeCatPacks();
@@ -138,6 +144,7 @@ void ThemeManager::initializeWidgets()
     auto darkThemeId = addTheme(std::make_unique<DarkTheme>());
     themeDebugLog() << "Loading Built-in Theme:" << darkThemeId;
     themeDebugLog() << "Loading Built-in Theme:" << addTheme(std::make_unique<BrightTheme>());
+    themeDebugLog() << "Loading Built-in Theme:" << addTheme(std::make_unique<PineconeTheme>());
 
     themeDebugLog() << "<> Initializing System Widget Themes";
     QStringList styles = QStyleFactory::keys();
@@ -260,6 +267,8 @@ void ThemeManager::setApplicationTheme(const QString& name, bool initial)
         themeDebugLog() << "applying theme" << theme->name();
         theme->apply(initial);
         setTitlebarColorOfAllWindowsOnMac(qApp->palette().window().color());
+        if (m_titlebarColorizer)
+            m_titlebarColorizer->setColor(theme->titlebarColor());
 
         m_logColors = theme->logColorScheme();
     } else {

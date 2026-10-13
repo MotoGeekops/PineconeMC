@@ -45,10 +45,13 @@
 #include <QShortcut>
 
 #include "launch/LaunchTask.h"
+#include "minecraft/CrashAnalyzer.h"
+#include "minecraft/MinecraftInstance.h"
 #include "settings/Setting.h"
 
 #include "ui/GuiUtil.h"
 #include "ui/themes/ThemeManager.h"
+#include "ui/widgets/CrashHelpPanel.h"
 
 #include <BuildConfig.h>
 
@@ -132,6 +135,15 @@ LogPage::LogPage(BaseInstance* instance, QWidget* parent) : QWidget(parent), ui(
 {
     ui->setupUi(this);
 
+    // the crash helper sits between the log controls and the log
+    m_crashHelp = new CrashHelpPanel(this);
+    ui->gridLayout->removeWidget(ui->text);
+    auto* logColumn = new QVBoxLayout;
+    logColumn->setSpacing(6);
+    logColumn->addWidget(m_crashHelp);
+    logColumn->addWidget(ui->text, 1);
+    ui->gridLayout->addLayout(logColumn, 1, 0, 1, 5);
+
     m_proxy = new LogFormatProxyModel(this);
 
     // set up fonts in the log proxy
@@ -206,11 +218,17 @@ void LogPage::UIToModelState()
 void LogPage::setInstanceLaunchTaskChanged(LaunchTask* proc, bool initial)
 {
     m_process = proc;
+    // a new launch starts with a clean slate
+    m_crashHelp->hide();
     if (m_process) {
+        connect(m_process, &Task::failed, this, &LogPage::analyzeFailedLaunch, Qt::UniqueConnection);
         m_model = proc->getLogModel();
         m_proxy->setSourceModel(m_model.get());
         if (initial) {
             modelStateToUI();
+            // the window was opened because the launch failed
+            if (m_process->getState() == Task::State::Failed)
+                analyzeFailedLaunch();
         } else {
             UIToModelState();
         }
@@ -223,6 +241,18 @@ void LogPage::setInstanceLaunchTaskChanged(LaunchTask* proc, bool initial)
 void LogPage::onInstanceLaunchTaskChanged(LaunchTask* proc)
 {
     setInstanceLaunchTaskChanged(proc, false);
+}
+
+void LogPage::analyzeFailedLaunch()
+{
+    auto* minecraft = dynamic_cast<MinecraftInstance*>(m_instance);
+    // stopping the game with the Kill button is not a crash
+    if (!minecraft || !m_process || !m_model || m_process->killedByUser()) {
+        m_crashHelp->hide();
+        return;
+    }
+    const auto input = CrashAnalyzer::gather(minecraft, m_model->toPlainText(), m_process->startedAt());
+    m_crashHelp->showDiagnoses(minecraft, CrashAnalyzer::analyze(input));
 }
 
 bool LogPage::apply()

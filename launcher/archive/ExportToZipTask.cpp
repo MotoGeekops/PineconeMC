@@ -22,6 +22,14 @@
 #include "FileSystem.h"
 
 namespace MMCZip {
+ExportToZipTask::~ExportToZipTask()
+{
+    // an aborted zip keeps running until it notices, and finish() won't get to remove the partial file any more
+    m_buildZipFuture.waitForFinished();
+    if (isRunning() && m_buildZipFuture.isCanceled())
+        FS::deletePath(m_outputPath);
+}
+
 void ExportToZipTask::executeTask()
 {
     setStatus("Adding files...");

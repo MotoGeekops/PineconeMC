@@ -73,6 +73,8 @@ ExportInstanceDialog::ExportInstanceDialog(BaseInstance* instance, QWidget* pare
     for (auto path : { "logs", "crash-reports", ".cache", ".fabric", ".quilt" }) {
         m_proxyModel->ignoreFilesWithPath().insert(FS::PathCombine(prefix, path));
     }
+    // world backups and restore points made by the launcher
+    m_proxyModel->ignoreFilesWithPath().insert("backups");
     m_proxyModel->ignoreFilesWithName().append({ ".DS_Store", "thumbs.db", "Thumbs.db" });
     m_proxyModel->loadBlockedPathsFromFile(ignoreFileName());
 

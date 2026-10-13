@@ -25,6 +25,11 @@ InstanceCopyTask::InstanceCopyTask(BaseInstance* origInstance, const InstanceCop
         filters += "instance.cfg";
     }
 
+    // backups stay with the original instance
+    if (!filters.isEmpty())
+        filters += "|";
+    filters += "^backups(/|$)";
+
     qDebug() << "CopyFilters:" << filters;
 
     if (!filters.isEmpty()) {

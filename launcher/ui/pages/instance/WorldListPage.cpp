@@ -61,6 +61,8 @@
 
 #include "Application.h"
 #include "DataPackPage.h"
+#include "backup/Backups.h"
+#include "ui/dialogs/ProgressDialog.h"
 
 class WorldListProxyModel : public QSortFilterProxyModel {
     Q_OBJECT
@@ -376,6 +378,7 @@ void WorldListPage::worldChanged([[maybe_unused]] const QModelIndex& current, [[
     ui->actionMCEdit->setEnabled(enable);
     ui->actionRemove->setEnabled(enable);
     ui->actionCopy->setEnabled(enable);
+    ui->actionBack_Up->setEnabled(enable);
     ui->actionRename->setEnabled(enable);
     ui->actionData_Packs->setEnabled(enable);
     bool hasIcon = !index.data(WorldList::IconFileRole).isNull();
@@ -475,6 +478,37 @@ void WorldListPage::on_actionJoin_triggered()
     auto worldVariant = m_worlds->data(index, WorldList::ObjectRole);
     auto world = (World*)worldVariant.value<void*>();
     APPLICATION->launch(m_inst, LaunchMode::Normal, std::make_shared<MinecraftTarget>(MinecraftTarget::parse(world->folderName(), true)));
+}
+
+void WorldListPage::on_actionBack_Up_triggered()
+{
+    QModelIndex index = getSelectedWorld();
+    if (!index.isValid()) {
+        return;
+    }
+
+    if (!worldSafetyNagQuestion(tr("Back Up World")))
+        return;
+
+    const QString name = m_worlds->data(index, WorldList::NameRole).toString();
+    auto task = Backups::WorldBackupTask::create(m_inst, m_worlds->data(index, WorldList::FolderRole).toString(), Backups::Reason::Manual);
+    ProgressDialog dialog(this);
+    dialog.setSkipButton(true, tr("Abort"));
+    dialog.execWithTask(task.get());
+
+    if (task->wasSuccessful()) {
+        CustomMessageBox::selectable(this, tr("Back Up World"), tr("\"%1\" was backed up. You can restore it from the Backups page.").arg(name),
+                                     QMessageBox::Information)
+            ->exec();
+    } else if (task->getState() == Task::State::Failed) {
+        CustomMessageBox::selectable(this, tr("Backup failed"), task->failReason(), QMessageBox::Critical)->exec();
+    }
+}
+
+void WorldListPage::on_actionBackups_triggered()
+{
+    if (m_container)
+        m_container->selectPage("backups");
 }
 
 #include "WorldListPage.moc"

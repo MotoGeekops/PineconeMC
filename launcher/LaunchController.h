@@ -86,6 +86,7 @@ class LaunchController : public Task {
 
     void onSucceeded();
     void onFailed(QString reason);
+    void notifyCrash();
     void onProgressRequested(Task* task) const;
 
    private:

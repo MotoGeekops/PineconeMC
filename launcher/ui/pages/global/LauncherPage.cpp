@@ -246,6 +246,15 @@ void LauncherPage::applySettings()
     s->set("ModDependenciesDisabled", !ui->dependenciesEnableBtn->isChecked());
     s->set("ShowModIncompat", ui->showModIncompatCheckBox->isChecked());
     s->set("SkipModpackUpdatePrompt", !ui->modpackUpdatePromptBtn->isChecked());
+
+    // Backups
+    s->set("BackupBeforeUpdates", ui->backupBeforeUpdatesCheckBox->isChecked());
+    s->set("AutoBackupsToKeep", ui->autoBackupsToKeepSpinBox->value());
+
+    // Notifications
+    s->set("NotifyOnCrash", ui->notifyCrashCheckBox->isChecked());
+    s->set("NotifyOnDownloads", ui->notifyDownloadsCheckBox->isChecked());
+    s->set("NotifyOnModUpdates", ui->notifyModUpdatesCheckBox->isChecked());
 }
 void LauncherPage::loadSettings()
 {
@@ -296,6 +305,15 @@ void LauncherPage::loadSettings()
     ui->dependenciesEnableBtn->setChecked(!s->get("ModDependenciesDisabled").toBool());
     ui->showModIncompatCheckBox->setChecked(s->get("ShowModIncompat").toBool());
     ui->modpackUpdatePromptBtn->setChecked(!s->get("SkipModpackUpdatePrompt").toBool());
+
+    // Backups
+    ui->backupBeforeUpdatesCheckBox->setChecked(s->get("BackupBeforeUpdates").toBool());
+    ui->autoBackupsToKeepSpinBox->setValue(s->get("AutoBackupsToKeep").toInt());
+
+    // Notifications
+    ui->notifyCrashCheckBox->setChecked(s->get("NotifyOnCrash").toBool());
+    ui->notifyDownloadsCheckBox->setChecked(s->get("NotifyOnDownloads").toBool());
+    ui->notifyModUpdatesCheckBox->setChecked(s->get("NotifyOnModUpdates").toBool());
 }
 
 void LauncherPage::retranslate()

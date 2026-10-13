@@ -87,11 +87,13 @@
    <addaction name="actionJoin"/>
    <addaction name="actionRename"/>
    <addaction name="actionCopy"/>
+   <addaction name="actionBack_Up"/>
    <addaction name="actionRemove"/>
    <addaction name="actionMCEdit"/>
    <addaction name="actionData_Packs"/>
    <addaction name="actionReset_Icon"/>
    <addaction name="separator"/>
+   <addaction name="actionBackups"/>
    <addaction name="actionCopy_Seed"/>
    <addaction name="actionRefresh"/>
    <addaction name="actionView_Folder"/>
@@ -114,6 +116,22 @@
   <action name="actionCopy">
    <property name="text">
     <string>Copy</string>
+   </property>
+  </action>
+  <action name="actionBack_Up">
+   <property name="text">
+    <string>Back Up</string>
+   </property>
+   <property name="toolTip">
+    <string>Save a copy of the world that you can restore later.</string>
+   </property>
+  </action>
+  <action name="actionBackups">
+   <property name="text">
+    <string>Backups</string>
+   </property>
+   <property name="toolTip">
+    <string>Restore or delete the backups of this instance.</string>
    </property>
   </action>
   <action name="actionRemove">

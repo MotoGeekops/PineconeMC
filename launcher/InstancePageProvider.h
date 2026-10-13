@@ -4,6 +4,7 @@
 #include "minecraft/MinecraftInstance.h"
 #include "ui/pages/BasePage.h"
 #include "ui/pages/BasePageProvider.h"
+#include "ui/pages/instance/BackupsPage.h"
 #include "ui/pages/instance/InstanceSettingsPage.h"
 #include "ui/pages/instance/LogPage.h"
 #include "ui/pages/instance/ManagedPackPage.h"
@@ -42,6 +43,7 @@ class InstancePageProvider : protected QObject, public BasePageProvider {
         values.append(new ShaderPackPage(onesix, onesix->shaderPackList()));
         values.append(new NotesPage(onesix));
         values.append(new WorldListPage(onesix, onesix->worldList()));
+        values.append(new BackupsPage(onesix));
         values.append(new ServersPage(onesix));
         values.append(new ScreenshotsPage(FS::PathCombine(onesix->gameRoot(), "screenshots")));
         values.append(new InstanceSettingsPage(onesix));

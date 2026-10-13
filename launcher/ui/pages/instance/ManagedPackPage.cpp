@@ -28,6 +28,8 @@
 #include "ui/InstanceWindow.h"
 #include "ui/dialogs/CustomMessageBox.h"
 #include "ui/dialogs/ProgressDialog.h"
+#include "ui/DesktopNotifier.h"
+#include "ui/pages/instance/BackupsPage.h"
 
 #include "net/ApiDownload.h"
 
@@ -338,6 +340,8 @@ void ManagedPackPage::onUpdateTaskCompleted(bool did_succeed) const
 {
     // Close the window if the update was successful
     if (did_succeed) {
+        DesktopNotifier::taskFinished(tr("%1 was updated").arg(m_inst->name()),
+                                      tr("The modpack is now at version %1.").arg(m_inst->getManagedPackVersionName()));
         if (m_instance_window != nullptr)
             m_instance_window->close();
 
@@ -512,6 +516,15 @@ void FlameManagedPackPage::updateFromFile()
 
 void ManagedPackPage::updatePack(const QUrl& url, bool trusted, QString versionID, QString versionName)
 {
+    // a restore point of the current pack version first, so the update can be undone from the Backups page
+    const QString currentVersion = m_inst->getManagedPackVersionName();
+    QString description = tr("Before updating the modpack");
+    if (!currentVersion.isEmpty())
+        description = versionName.isEmpty() ? tr("Modpack version %1, before updating").arg(currentVersion)
+                                            : tr("Modpack version %1, before updating to %2").arg(currentVersion, versionName);
+    if (!BackupsPage::backUpBeforeUpdate(this, dynamic_cast<MinecraftInstance*>(m_inst), Backups::Scope::InstanceFiles, description))
+        return;
+
     QMap<QString, QString> extra_info;
     // NOTE: Don't use 'm_pack.id' here, since we didn't completely parse all the metadata for the pack, including this field.
     extra_info.insert("pack_id", m_inst->getManagedPackID());

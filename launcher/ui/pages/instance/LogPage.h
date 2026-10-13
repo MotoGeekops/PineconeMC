@@ -46,6 +46,7 @@ namespace Ui {
 class LogPage;
 }
 class QTextCharFormat;
+class CrashHelpPanel;
 
 class LogFormatProxyModel : public QIdentityProxyModel {
    public:
@@ -89,6 +90,7 @@ class LogPage : public QWidget, public BasePage {
     void findPreviousActivated();
 
     void onInstanceLaunchTaskChanged(LaunchTask* proc);
+    void analyzeFailedLaunch();
 
    private:
     void modelStateToUI();
@@ -98,8 +100,9 @@ class LogPage : public QWidget, public BasePage {
    private:
     Ui::LogPage* ui;
     BaseInstance* m_instance;
-    LaunchTask* m_process;
+    LaunchTask* m_process = nullptr;
 
     LogFormatProxyModel* m_proxy;
+    CrashHelpPanel* m_crashHelp = nullptr;
     shared_qobject_ptr<LogModel> m_model;
 };

@@ -86,6 +86,11 @@ class LaunchTask : public Task {
 
     shared_qobject_ptr<LogModel> getLogModel();
 
+    /// when this launch started; files the game wrote since then belong to it
+    QDateTime startedAt() const { return m_startedAt; }
+    /// true when the game was stopped with the Kill button rather than crashing
+    bool killedByUser() const { return state == LaunchTask::Aborted; }
+
    public:
     QString substituteVariables(QString& cmd, bool isLaunch = false) const;
     QString censorPrivateInfo(QString in);
@@ -125,6 +130,7 @@ class LaunchTask : public Task {
     int currentStep = -1;
     State state = NotStarted;
     qint64 m_pid = -1;
+    QDateTime m_startedAt;
     LogParser m_stdoutParser;
     LogParser m_stderrParser;
 };

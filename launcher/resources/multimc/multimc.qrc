@@ -6,6 +6,7 @@
         <!-- REDDIT logo icon, needs reddit license! -->
         <file>scalable/reddit-alien.svg</file>
         <file>scalable/search.svg</file>
+        <file>scalable/backups.svg</file>
 
         <!-- launcher settings page -->
         <file>scalable/launcher.svg</file>

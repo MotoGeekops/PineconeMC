@@ -1139,3 +1139,70 @@ QToolButton#continueCloseButton:hover {
     color: #ececec;
     background: #333333;
 }
+
+/* ---- crash helper above the game log ---- */
+
+QFrame#crashHelp {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #33221f, stop:0.5 #262626, stop:1 #262626);
+    border: 1px solid #45302b;
+    border-radius: 12px;
+}
+
+QLabel#crashHelpCaption {
+    color: #ff7b72;
+}
+
+QLabel#crashHelpTitle {
+    color: #f4f4f4;
+}
+
+QLabel#crashHelpStatus {
+    color: #96db59;
+}
+
+QPushButton#crashHelpPrimaryButton {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #a4e36c, stop:1 #8fd453);
+    color: #0f1a0a;
+    font-weight: 700;
+    border: 1px solid #7fbf47;
+    border-radius: 9px;
+    padding: 5px 14px;
+}
+
+QPushButton#crashHelpPrimaryButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #b0ea7c, stop:1 #9bdc61);
+}
+
+QPushButton#crashHelpPrimaryButton:disabled {
+    background: #2c2c2c;
+    color: #6b6b6b;
+    border-color: #333333;
+}
+
+QPushButton#crashHelpButton {
+    border-radius: 9px;
+    padding: 5px 14px;
+}
+
+QToolButton#crashHelpCloseButton {
+    color: #6b6b6b;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 2px 5px;
+}
+
+QToolButton#crashHelpCloseButton:hover {
+    color: #ececec;
+    background: #333333;
+}
+
+/* ---- backups page and troubleshooter ---- */
+
+QLabel#backupsHint {
+    color: #9a9a9a;
+}
+
+QLabel#troubleshooterSummary {
+    color: #f4f4f4;
+}

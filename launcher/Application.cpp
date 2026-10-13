@@ -816,6 +816,15 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         m_settings->registerSetting("ShowContinueCard", true);
         m_settings->registerSetting("FavoritesCollapsed", false);
 
+        // backups made before mod and modpack updates
+        m_settings->registerSetting("BackupBeforeUpdates", true);
+        m_settings->registerSetting("AutoBackupsToKeep", 3);
+
+        // desktop notifications
+        m_settings->registerSetting("NotifyOnCrash", true);
+        m_settings->registerSetting("NotifyOnDownloads", true);
+        m_settings->registerSetting("NotifyOnModUpdates", true);
+
         // Instance
         m_settings->registerSetting("InstSortMode", "Name");
         m_settings->registerSetting("InstRenamingMode", "AskEverytime");

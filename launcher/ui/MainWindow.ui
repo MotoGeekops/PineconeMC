@@ -212,6 +212,8 @@
     <property name="toolTipsVisible">
      <bool>true</bool>
     </property>
+    <addaction name="actionTroubleshoot"/>
+    <addaction name="separator"/>
     <addaction name="actionClearMetadata"/>
     <addaction name="actionReportBug"/>
     <addaction name="actionViewLog"/>
@@ -649,6 +651,17 @@
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::AboutRole</enum>
+   </property>
+  </action>
+  <action name="actionTroubleshoot">
+   <property name="icon">
+    <iconset theme="help"/>
+   </property>
+   <property name="text">
+    <string>Something's &amp;Wrong?</string>
+   </property>
+   <property name="toolTip">
+    <string>Check Java, memory, disk space, the account, graphics and the internet connection</string>
    </property>
   </action>
   <action name="actionClearMetadata">

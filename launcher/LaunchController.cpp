@@ -59,6 +59,9 @@
 #include "BuildConfig.h"
 #include "JavaCommon.h"
 #include "launch/steps/TextPrint.h"
+#include "minecraft/CrashAnalyzer.h"
+#include "ui/BackgroundModUpdateCheck.h"
+#include "ui/DesktopNotifier.h"
 #include "tasks/Task.h"
 #include "ui/dialogs/ChooseOfflineNameDialog.h"
 
@@ -477,11 +480,34 @@ void LaunchController::readyForLaunch()
 
 void LaunchController::onSucceeded()
 {
+    // a good moment to look for mod updates: the game just closed
+    BackgroundModUpdateCheck::start(dynamic_cast<MinecraftInstance*>(m_instance));
     emitSucceeded();
+}
+
+void LaunchController::notifyCrash()
+{
+    auto* minecraft = dynamic_cast<MinecraftInstance*>(m_instance);
+    // the Kill button is not a crash; and with the launcher in front, the log window says it all
+    if (!minecraft || !m_launcher || m_launcher->killedByUser() || !APPLICATION->settings()->get("NotifyOnCrash").toBool() ||
+        !DesktopNotifier::launcherInBackground()) {
+        return;
+    }
+    const auto diagnoses =
+        CrashAnalyzer::analyze(CrashAnalyzer::gather(minecraft, m_launcher->getLogModel()->toPlainText(), m_launcher->startedAt()));
+    // failures before the game ran, like a failed download, come with their own message
+    if (diagnoses.isEmpty())
+        return;
+    QPointer<BaseInstance> instance(m_instance);
+    DesktopNotifier::notify(tr("%1 crashed").arg(m_instance->name()), diagnoses.first().title, [instance] {
+        if (instance)
+            APPLICATION->showInstanceWindow(instance, "console");
+    });
 }
 
 void LaunchController::onFailed(QString reason)
 {
+    notifyCrash();
     if (m_instance->settings()->get("ShowConsoleOnError").toBool()) {
         APPLICATION->showInstanceWindow(m_instance, "console");
     }

@@ -133,6 +133,9 @@
 #include "modplatform/flame/FlameModIndex.h"
 
 #include "KonamiCode.h"
+#include "ui/BackgroundModUpdateCheck.h"
+#include "ui/DesktopNotifier.h"
+#include "ui/dialogs/TroubleshooterDialog.h"
 
 #include "InstanceCopyTask.h"
 #include "InstanceDirUpdate.h"
@@ -572,6 +575,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         QEvent styleChange(QEvent::StyleChange);
         QCoreApplication::sendEvent(toolbar, &styleChange);
     }
+
+    // look for mod updates of the last played instance once things have settled down
+    QTimer::singleShot(std::chrono::seconds(45), this, &BackgroundModUpdateCheck::startForLastPlayed);
 
     retranslateUi();
 }
@@ -1130,8 +1136,11 @@ void MainWindow::runModalTask(Task* task)
 
 void MainWindow::instanceFromInstanceTask(InstanceTask* rawTask)
 {
+    const QString name = rawTask->name();
     unique_qobject_ptr<Task> task(APPLICATION->instances()->wrapInstanceTask(rawTask));
     runModalTask(task.get());
+    if (task->wasSuccessful())
+        DesktopNotifier::taskFinished(tr("%1 is ready to play").arg(name), tr("The instance has finished installing."));
 }
 
 void MainWindow::on_actionCopyInstance_triggered()
@@ -1668,6 +1677,12 @@ void MainWindow::on_actionEditInstance_triggered()
 void MainWindow::on_actionManageAccounts_triggered()
 {
     APPLICATION->ShowGlobalSettings(this, "accounts");
+}
+
+void MainWindow::on_actionTroubleshoot_triggered()
+{
+    TroubleshooterDialog dialog(m_selectedInstance, this);
+    dialog.exec();
 }
 
 void MainWindow::on_actionReportBug_triggered()

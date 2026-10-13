@@ -34,6 +34,10 @@ set(CORE_SOURCES
     archive/ExportToZipTask.h
     archive/ExtractZipTask.cpp
     archive/ExtractZipTask.h
+    backup/Backups.cpp
+    backup/Backups.h
+    minecraft/CrashAnalyzer.cpp
+    minecraft/CrashAnalyzer.h
     StringUtils.h
     StringUtils.cpp
     QVariantUtils.h
@@ -953,6 +957,8 @@ SET(LAUNCHER_SOURCES
     ui/pages/instance/ServersPage.h
     ui/pages/instance/WorldListPage.cpp
     ui/pages/instance/WorldListPage.h
+    ui/pages/instance/BackupsPage.cpp
+    ui/pages/instance/BackupsPage.h
     ui/pages/instance/McClient.cpp
     ui/pages/instance/McClient.h
     ui/pages/instance/McResolver.cpp
@@ -1148,6 +1154,14 @@ SET(LAUNCHER_SOURCES
     ui/widgets/JavaWizardWidget.h
     ui/widgets/ContinueCard.cpp
     ui/widgets/ContinueCard.h
+    ui/widgets/CrashHelpPanel.cpp
+    ui/widgets/CrashHelpPanel.h
+    ui/dialogs/TroubleshooterDialog.cpp
+    ui/dialogs/TroubleshooterDialog.h
+    ui/DesktopNotifier.cpp
+    ui/DesktopNotifier.h
+    ui/BackgroundModUpdateCheck.cpp
+    ui/BackgroundModUpdateCheck.h
     ui/widgets/ElidedLinesLabel.h
     ui/widgets/LabeledToolButton.cpp
     ui/widgets/LabeledToolButton.h

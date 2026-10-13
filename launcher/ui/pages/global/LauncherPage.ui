@@ -445,6 +445,101 @@
         </widget>
        </item>
        <item>
+        <widget class="QGroupBox" name="backupsBox">
+         <property name="title">
+          <string>Backups</string>
+         </property>
+         <layout class="QVBoxLayout" name="backupsLayout">
+          <item>
+           <widget class="QCheckBox" name="backupBeforeUpdatesCheckBox">
+            <property name="toolTip">
+             <string>Saves a restore point of the mods (and of the configs, for modpacks) and backs up the worlds played since their last backup. You find them on the Backups page of the instance.</string>
+            </property>
+            <property name="text">
+             <string>Back up automatically before updating mods or modpacks</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="backupsKeepLayout">
+            <item>
+             <widget class="QLabel" name="autoBackupsToKeepLabel">
+              <property name="text">
+               <string>Automatic backups to keep:</string>
+              </property>
+              <property name="buddy">
+               <cstring>autoBackupsToKeepSpinBox</cstring>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="autoBackupsToKeepSpinBox">
+              <property name="toolTip">
+               <string>Counted per world, and for the restore points of each instance. Backups you make yourself are always kept.</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>50</number>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="backupsKeepSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="notificationsBox">
+         <property name="title">
+          <string>Desktop Notifications</string>
+         </property>
+         <layout class="QVBoxLayout" name="notificationsLayout">
+          <item>
+           <widget class="QCheckBox" name="notifyCrashCheckBox">
+            <property name="text">
+             <string>When the game crashes</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="notifyDownloadsCheckBox">
+            <property name="toolTip">
+             <string>Only while the launcher is in the background.</string>
+            </property>
+            <property name="text">
+             <string>When downloads and updates finish in the background</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="notifyModUpdatesCheckBox">
+            <property name="toolTip">
+             <string>Checks the mods of the instance you played last, at most once a day.</string>
+            </property>
+            <property name="text">
+             <string>When mod updates are available</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="groupBox_2">
          <property name="title">
           <string>Console</string>
@@ -680,6 +775,11 @@
   <tabstop>dependenciesEnableBtn</tabstop>
   <tabstop>showModIncompatCheckBox</tabstop>
   <tabstop>modpackUpdatePromptBtn</tabstop>
+  <tabstop>backupBeforeUpdatesCheckBox</tabstop>
+  <tabstop>autoBackupsToKeepSpinBox</tabstop>
+  <tabstop>notifyCrashCheckBox</tabstop>
+  <tabstop>notifyDownloadsCheckBox</tabstop>
+  <tabstop>notifyModUpdatesCheckBox</tabstop>
   <tabstop>downloadGameFilesBtn</tabstop>
   <tabstop>lineLimitSpinBox</tabstop>
   <tabstop>checkStopLogging</tabstop>

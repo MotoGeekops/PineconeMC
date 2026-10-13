@@ -66,6 +66,8 @@
 #include "tasks/ConcurrentTask.h"
 #include "tasks/Task.h"
 #include "ui/dialogs/ProgressDialog.h"
+#include "ui/DesktopNotifier.h"
+#include "ui/pages/instance/BackupsPage.h"
 
 ModFolderPage::ModFolderPage(BaseInstance* inst, ModFolderModel* model, QWidget* parent)
     : ExternalResourcesPage(inst, model, parent), m_model(model)
@@ -195,6 +197,7 @@ void ModFolderPage::downloadDialogFinished(int result)
             if (warnings.count()) {
                 CustomMessageBox::selectable(this, tr("Warnings"), warnings.join('\n'), QMessageBox::Warning)->show();
             }
+            DesktopNotifier::taskFinished(tr("Mods downloaded"), tr("The new mods for %1 are ready.").arg(m_instance->name()));
 
             tasks->deleteLater();
         });
@@ -274,6 +277,14 @@ void ModFolderPage::updateMods(bool includeDeps)
     }
 
     if (updateDialog.exec() != 0) {
+        // a restore point first, so a bad update can be undone from the Backups page
+        if (!BackupsPage::backUpBeforeUpdate(this, static_cast<MinecraftInstance*>(m_instance), Backups::Scope::Mods,
+                                             updateDialog.getTasks().size() == 1
+                                                 ? tr("Before updating 1 mod")
+                                                 : tr("Before updating %1 mods").arg(updateDialog.getTasks().size()))) {
+            return;
+        }
+
         auto* tasks = new ConcurrentTask("Download Mods", APPLICATION->settings()->get("NumberOfConcurrentDownloads").toInt());
         connect(tasks, &Task::failed, [this, tasks](const QString& reason) {
             CustomMessageBox::selectable(this, tr("Error"), reason, QMessageBox::Critical)->show();
@@ -288,6 +299,7 @@ void ModFolderPage::updateMods(bool includeDeps)
             if (warnings.count()) {
                 CustomMessageBox::selectable(this, tr("Warnings"), warnings.join('\n'), QMessageBox::Warning)->show();
             }
+            DesktopNotifier::taskFinished(tr("Mods updated"), tr("The mod updates for %1 are installed.").arg(m_instance->name()));
             tasks->deleteLater();
         });
 
